@@ -1,46 +1,80 @@
-- name: check packages for updates
-  shell: yum list updates | awk 'f;/Updated Packages/{f=1;}' | awk '{ print $1 }'
-  changed_when: updates.stdout_lines | length > 0
-  args:
-    warn: false
-  register: updates
- 
-- name: display count
-  debug:
-    msg: "Found {{ updates.stdout_lines | length }} packages to be updated:\n\n{{ updates.stdout }}"
- 
-- when: updates.stdout_lines | length > 0
-  block:
-    - name: install updates using yum
+---
+- name: Patch and reboot servers
+  hosts: all
+  vars:
+    yum_name: "*"
+    yum_state:  latest
+    yum_enablerepo: "rhel-?-server-rpms,rhel-?-server-satellite-tools-6.?-rpms"
+    yum_disablerepo: "*"
+    yum_exclude: ""
+    dnf_name: "*"
+    dnf_state: latest
+    dnf_enablerepo: "rhel-8-for-x86_64-appstream-rpms,rhel-8-for-x86_64-baseos-rpms,satellite-tools-6.?-for-rhel-8-x86_64-rpms"
+    dnf_disablerepo: "*"
+    dnf_exclude: ""
+  tasks:
+
+    - name: upgrade packages via yum
       yum:
-        name: "*"
-        state: latest
- 
-    - name: install yum-utils
-      package:
-        name: yum-utils
- 
-    - name: check if reboot is required
-      shell: needs-restarting -r
-      failed_when: false
-      register: reboot_required
-      changed_when: false
- 
-- when: updates.stdout_lines | length > 0 and reboot_required.rc != 0
-  block:
-    - name: reboot the server if required
-      shell: sleep 3; reboot
-      ignore_errors: true
-      changed_when: false
-      async: 1
-      poll: 0
- 
-    - name: wait for server to come back after reboot
-      wait_for_connection:
-        timeout: 600
-        delay: 20
-      register: reboot_result
- 
-    - name: reboot time
+        name={{ yum_name }}
+        state={{ yum_state }}
+        disablerepo={{ yum_disablerepo }}
+        enablerepo={{ yum_enablerepo }}
+        exclude={{ yum_exclude }}
+      become: "yes"
+      register: yumcommandout
+      when:
+        - (ansible_facts['distribution_major_version'] == '6') or
+          (ansible_facts['distribution_major_version'] == '7')
+
+    - name: Print errors if yum failed
       debug:
-        msg: "The system rebooted in {{ reboot_result.elapsed }} seconds."
+        msg: "yum command produced errors"
+      when: yumcommandout is not defined
+
+    - name: upgrade packages via dnf
+      dnf:
+        name={{ dnf_name }}
+        state={{ dnf_state }}
+        disablerepo={{ dnf_disablerepo }}
+        enablerepo={{ dnf_enablerepo }}
+        exclude={{ dnf_exclude }}
+      become: "yes"
+      register: dnfcommandout
+      when:
+        - ansible_facts['distribution_major_version'] == '8'
+
+    - name: Print errors if dnf failed
+      debug:
+        msg: "dnf command produced errors"
+      when: dnfcommandout is not defined
+
+    - name: check to see if we need a reboot
+      command: needs-restarting -r
+      register: result
+      ignore_errors: yes
+
+    - name: display result
+      debug:
+        var: result.rc
+
+    - name: Reboot Server if Necessary
+      command: shutdown -r now "Ansible Updates Triggered"
+      become: true
+      async: 30
+      poll: 0
+      when: result.rc == 1
+
+    # This pause is mandatory, otherwise the existing control connection
+    # gets reused!
+    # (https://gist.github.com/infernix/a968f23c4f4e1d6723e4)
+    - name: Pausing to allow server to shutdown and terminate our SSH connection
+      pause: seconds=30
+      when: result.rc == 1
+
+    - name: Wait for reboot to complete and SSH to become available
+      local_action: wait_for host={{ inventory_hostname }} port=22
+        state=started delay=30 timeout=600
+      retries: 30
+      delay: 10
+      when: result.rc == 1
