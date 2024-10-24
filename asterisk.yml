@@ -5,7 +5,7 @@
   tasks:
     - name: Perform a dist-upgrade.
       ansible.builtin.apt:
-        upgrade: dist
+        upgrade: rhel
         update_cache: yes
     - name: Check if a reboot is required.
       ansible.builtin.stat:
