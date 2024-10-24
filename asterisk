@@ -1,0 +1,11 @@
+---
+- name: parcheo Linux Systems
+  hosts: web
+  become: yes
+
+  tasks:
+    - name: Update RHEL-based Systems
+      when: ansible_os_family == 'RedHat'
+      yum:
+        name: '*'
+        state: latest
