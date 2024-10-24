@@ -8,20 +8,4 @@
       when: ansible_os_family == 'RedHat'
       yum:
         name: '*'
-        state: latest
-
-         - name: check to see if we need a reboot
-      command: needs-restarting -r
-      register: result
-      ignore_errors: yes
-
-    - name: display result
-      debug:
-        var: result.rc
-
-    - name: Reboot Server if Necessary
-      command: shutdown -r now "Ansible Updates Triggered"
-      become: true
-      async: 30
-      poll: 0
-      when: result.rc == 1
+        state: latest    
