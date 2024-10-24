@@ -1,6 +1,6 @@
 ---
 - name: Patch and reboot servers
-  hosts: all
+  hosts: web
   vars:
     yum_name: "*"
     yum_state:  latest
