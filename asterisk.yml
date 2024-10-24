@@ -1,21 +1,46 @@
----
-- hosts: web
-  gather_facts: yes
-  become: yes
-  tasks:
-    - name: Perform a dist-upgrade.
-      ansible.builtin.apt:
-        upgrade: rhel
-        update_cache: yes
-    - name: Check if a reboot is required.
-      ansible.builtin.stat:
-        path: /var/run/reboot-required
-        get_checksum: no
-      register: reboot_required_file
-    - name: Reboot the server (if required).
-      ansible.builtin.reboot:
-      when: reboot_required_file.stat.exists == true
-    - name: Remove dependencies that are no longer required.
-      ansible.builtin.apt:
-        autoremove: yes
-
+- name: check packages for updates
+  shell: yum list updates | awk 'f;/Updated Packages/{f=1;}' | awk '{ print $1 }'
+  changed_when: updates.stdout_lines | length > 0
+  args:
+    warn: false
+  register: updates
+ 
+- name: display count
+  debug:
+    msg: "Found {{ updates.stdout_lines | length }} packages to be updated:\n\n{{ updates.stdout }}"
+ 
+- when: updates.stdout_lines | length > 0
+  block:
+    - name: install updates using yum
+      yum:
+        name: "*"
+        state: latest
+ 
+    - name: install yum-utils
+      package:
+        name: yum-utils
+ 
+    - name: check if reboot is required
+      shell: needs-restarting -r
+      failed_when: false
+      register: reboot_required
+      changed_when: false
+ 
+- when: updates.stdout_lines | length > 0 and reboot_required.rc != 0
+  block:
+    - name: reboot the server if required
+      shell: sleep 3; reboot
+      ignore_errors: true
+      changed_when: false
+      async: 1
+      poll: 0
+ 
+    - name: wait for server to come back after reboot
+      wait_for_connection:
+        timeout: 600
+        delay: 20
+      register: reboot_result
+ 
+    - name: reboot time
+      debug:
+        msg: "The system rebooted in {{ reboot_result.elapsed }} seconds."
