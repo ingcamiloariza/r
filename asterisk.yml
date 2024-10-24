@@ -1,9 +1,3 @@
----
-- name: send a message to chat in playbook
-  telegram:
-    token: '7696215271:AAGuqu_Wv3oG--Kd7jua0L3K1JDXVBT2ops'
-    chat_id: 1271362249
-    msg: toma tu funciono
 - name: Patch and reboot servers
   hosts: web
   vars:
