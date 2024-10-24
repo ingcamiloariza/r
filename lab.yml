@@ -3,6 +3,6 @@
   # A quienes se les va a operar 
   hosts: web
   tasks:
-    - name: Dame un mensaje
+    - name: Dame un mensaje camilooooo
       ansible.builtin.debug:
         msg: "Bienvenido al mundo de Ansible"
