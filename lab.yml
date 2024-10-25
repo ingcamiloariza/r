@@ -1,3 +1,4 @@
+---
 - name: Disable SSH Root Login
   block:
   - name: Check for duplicate values
