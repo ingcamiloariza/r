@@ -13,12 +13,12 @@
     dnf_exclude: ""
   tasks:
 
-- name: Remove lines containing NOPASSWD from sudoers files
+#- name: Remove lines containing NOPASSWD from sudoers files
   ansible.builtin.replace:
-    regexp: (^(?!#).*[\s]+NOPASSWD[\s]*\:.*$)
-    replace: '# \g<1>'
+    regexp: "(^(?!#).*[\s]+NOPASSWD[\s]*\:.*$)"
+    replace: "'# \g<1>'"
     path: '{{ item.path }}'
-    validate: /usr/sbin/visudo -cf %s
+    validate: " /usr/sbin/visudo -cf %s"
   with_items:
   - path: /etc/sudoers
   - '{{ sudoers.files }}'
