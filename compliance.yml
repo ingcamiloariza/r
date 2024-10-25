@@ -1,3 +1,4 @@
+---
 #asterisk
 - name: Remove lines containing NOPASSWD from sudoers files
   ansible.builtin.replace:
