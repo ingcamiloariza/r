@@ -1,28 +1,27 @@
----
-#- name: Remove lines containing NOPASSWD from sudoers files
-  ansible.builtin.replace:
-    regexp: (^(?!#).*[\s]+NOPASSWD[\s]*\:.*$)
-    replace: '# \g<1>'
-    path: '{{ item.path }}'
-    validate: /usr/sbin/visudo -cf %s
-  with_items:
-  - path: /etc/sudoers
-  - '{{ sudoers.files }}'
-  tags:
-  - CCE-82279-1
-  - NIST-800-53-CM-6(a)
-  - NIST-800-53-IA-11
-  - PCI-DSSv4-2.2.6
-  - low_complexity
-  - low_disruption
-  - medium_severity
-  - no_reboot_needed
-  - restrict_strategy
-  - sudo_require_authentication
-  when:
-  - low_complexity | bool
-  - low_disruption | bool
-  - medium_severity | bool
-  - no_reboot_needed | bool
-  - restrict_strategy | bool
-  - sudo_require_authentication | bool
+- name: Patch and reboot servers
+  hosts: web
+  vars:
+    yum_name: "*"
+    yum_state:  latest
+    yum_enablerepo: "rhel-?-server-rpms,rhel-?-server-satellite-tools-6.?-rpms"
+    yum_disablerepo: "*"
+    yum_exclude: ""
+    dnf_name: "*"
+    dnf_state: latest
+    dnf_enablerepo: "rhel-8-for-x86_64-appstream-rpms,rhel-8-for-x86_64-baseos-rpms,satellite-tools-6.?-for-rhel-8-x86_64-rpms"
+    dnf_disablerepo: "*"
+    dnf_exclude: ""
+  tasks:
+
+    - name: upgrade packages via yum
+      yum:
+        name={{ yum_name }}
+        state={{ yum_state }}
+        disablerepo={{ yum_disablerepo }}
+        enablerepo={{ yum_enablerepo }}
+        exclude={{ yum_exclude }}
+      become: "yes"
+      register: yumcommandout
+      when:
+        - (ansible_facts['distribution_major_version'] == '6') or
+          (ansible_facts['distribution_major_version'] == '7')
