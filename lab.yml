@@ -1,3 +1,4 @@
+---
 - name: Remove lines containing NOPASSWD from sudoers files
   ansible.builtin.replace:
     regexp: (^(?!#).*[\s]+NOPASSWD[\s]*\:.*$)
